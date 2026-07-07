@@ -1,0 +1,36 @@
+# Gitignore for AI Spending Coach Project
+
+# Backend (Spring Boot)
+backend/target/
+backend/.maven/
+backend/data/
+backend/src/main/resources/application.yml
+*.class
+*.jar
+*.war
+*.db
+*.trace.db
+
+# Frontend (React + Vite)
+frontend/node_modules/
+frontend/dist/
+frontend/.oxlintrc.json
+frontend/.env.local
+frontend/.env.*.local
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+.pnpm-debug.log*
+
+# IDEs & System Files
+.idea/
+*.iml
+.vscode/
+.settings/
+.project
+.classpath
+.factorypath
+.DS_Store
+Thumbs.db
+log/
+*.log
