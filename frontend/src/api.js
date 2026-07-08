@@ -35,5 +35,6 @@ export const api = {
   getUser: () => client.get('/user').then(r => r.data),
   updateUser: (data) => client.put('/user', data).then(r => r.data),
   
-  askAi: (question) => client.post('/ai/chat', { question }).then(r => r.data),
+  askAi: (question, persona, currentReport) => client.post('/ai/chat', { question, persona, currentReport }).then(r => r.data),
+  getAiReport: (persona) => client.post('/ai/report', null, { params: { persona } }).then(r => r.data),
 };

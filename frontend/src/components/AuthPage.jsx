@@ -9,7 +9,6 @@ export default function AuthPage({ onAuthSuccess }) {
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
   const [income, setIncome] = useState('');
-  const [goalSaving, setGoalSaving] = useState('');
   
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
@@ -31,13 +30,8 @@ export default function AuthPage({ onAuthSuccess }) {
         onAuthSuccess(user);
       } else {
         // Signup flow
-        if (!income || !goalSaving) {
-          setError('월 소득과 목표 저축액을 모두 입력해 주세요.');
-          setLoading(false);
-          return;
-        }
-        if (Number(goalSaving) > Number(income)) {
-          setError('목표 저축액이 월 소득보다 클 수 없습니다.');
+        if (!income) {
+          setError('월 소득을 입력해 주세요.');
           setLoading(false);
           return;
         }
@@ -45,8 +39,7 @@ export default function AuthPage({ onAuthSuccess }) {
         const user = await api.signup({
           username,
           password,
-          income: Number(income),
-          goalSaving: Number(goalSaving)
+          income: Number(income)
         });
         
         // Auto-login after signup
@@ -156,22 +149,6 @@ export default function AuthPage({ onAuthSuccess }) {
                 </div>
               </div>
 
-              <div>
-                <label className="block text-xs font-bold uppercase tracking-wider text-slate-500 mb-1.5 pl-0.5">이번 달 목표 저축액 (원)</label>
-                <div className="relative">
-                  <span className="absolute inset-y-0 left-0 pl-3.5 flex items-center text-slate-400">
-                    <Target className="w-4 h-4" />
-                  </span>
-                  <input
-                    type="number"
-                    placeholder="예: 1000000"
-                    value={goalSaving}
-                    onChange={(e) => setGoalSaving(e.target.value)}
-                    className="w-full pl-10 pr-4 py-2.5 rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all text-sm font-medium"
-                    required
-                  />
-                </div>
-              </div>
             </div>
           )}
 

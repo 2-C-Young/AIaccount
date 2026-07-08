@@ -36,10 +36,39 @@ public class AiController {
         User user = userOpt.get();
         List<Transaction> transactions = transactionService.getAllTransactions(user);
         
-        String prompt = promptService.buildPrompt(user, transactions, request.getQuestion());
+        String prompt = promptService.buildChatPrompt(
+            user, 
+            transactions, 
+            request.getQuestion(), 
+            request.getPersona() != null ? request.getPersona() : user.getCoachPersona(), 
+            request.getCurrentReport() != null ? request.getCurrentReport() : user.getLastAiReport()
+        );
         String answer = geminiService.callGemini(prompt);
 
         return ResponseEntity.ok(new ChatResponse(answer));
+    }
+
+    @PostMapping("/report")
+    public ResponseEntity<ReportResponse> generateReport(@RequestHeader("X-User-Id") Long userId, @RequestParam(value = "persona", required = false) String persona) {
+        Optional<User> userOpt = userService.getUserById(userId);
+        if (userOpt.isEmpty()) {
+            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).build();
+        }
+        
+        User user = userOpt.get();
+        String selectedPersona = (persona != null && !persona.trim().isEmpty()) ? persona : user.getCoachPersona();
+        List<Transaction> transactions = transactionService.getAllTransactions(user);
+        
+        String prompt = promptService.buildReportPrompt(user, transactions, selectedPersona);
+        String report = geminiService.callGemini(prompt);
+        
+        // Save to user
+        user.setLastAiReport(report);
+        user.setLastAiReportPersona(selectedPersona);
+        user.setCoachPersona(selectedPersona);
+        userService.updateUser(user.getId(), user);
+        
+        return ResponseEntity.ok(new ReportResponse(report, selectedPersona));
     }
 
     @Data
@@ -47,6 +76,8 @@ public class AiController {
     @AllArgsConstructor
     public static class ChatRequest {
         private String question;
+        private String persona;
+        private String currentReport;
     }
 
     @Data
@@ -54,5 +85,13 @@ public class AiController {
     @AllArgsConstructor
     public static class ChatResponse {
         private String answer;
+    }
+
+    @Data
+    @NoArgsConstructor
+    @AllArgsConstructor
+    public static class ReportResponse {
+        private String report;
+        private String persona;
     }
 }

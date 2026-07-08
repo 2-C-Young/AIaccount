@@ -158,11 +158,11 @@ export default function App() {
     }
   };
 
-  const handleSendAiMessage = async (content) => {
+  const handleSendAiMessage = async (content, persona, currentReport) => {
     setAiMessages((prev) => [...prev, { role: 'user', content }]);
     setIsAiLoading(true);
     try {
-      const response = await api.askAi(content);
+      const response = await api.askAi(content, persona, currentReport);
       setAiMessages((prev) => [...prev, { role: 'assistant', content: response.answer }]);
     } catch (e) {
       setAiMessages((prev) => [...prev, { role: 'assistant', content: '죄송합니다. 답변을 받아오는 데 실패했습니다. 잠시 후 다시 시도해 주세요.' }]);
@@ -288,6 +288,8 @@ export default function App() {
             messages={aiMessages}
             onSendMessage={handleSendAiMessage}
             isLoading={isAiLoading}
+            user={user}
+            setUser={setUser}
           />
         )}
       </main>
@@ -296,6 +298,7 @@ export default function App() {
       <UserFormModal
         isOpen={isUserModalOpen}
         onSubmit={handleUserSetup}
+        onClose={() => setIsUserModalOpen(false)}
         initialData={user}
       />
     </div>

@@ -1,6 +1,7 @@
 package com.coach.spending.service;
 
 import com.coach.spending.model.Transaction;
+import com.coach.spending.model.TransactionType;
 import com.coach.spending.model.User;
 import com.coach.spending.repository.TransactionRepository;
 import lombok.RequiredArgsConstructor;
@@ -19,6 +20,7 @@ public class TransactionService {
     private final TransactionRepository transactionRepository;
 
     public List<Transaction> getAllTransactions(User user) {
+        syncMonthlyIncomeTransaction(user);
         List<Transaction> realTransactions = transactionRepository.findByUserOrderByTransactionDateDesc(user);
         List<Transaction> result = new ArrayList<>(realTransactions);
         
@@ -42,6 +44,7 @@ public class TransactionService {
                             .transactionDate(virtualDate)
                             .type(t.getType())
                             .isFixed(true)
+                            .satisfaction(t.getSatisfaction())
                             .user(user)
                             .build();
                     result.add(clone);
@@ -57,6 +60,7 @@ public class TransactionService {
     }
 
     public List<Transaction> getTransactionsInMonth(User user, LocalDate date) {
+        syncMonthlyIncomeTransaction(user);
         LocalDate start = date.withDayOfMonth(1);
         LocalDate end = date.withDayOfMonth(date.lengthOfMonth());
         
@@ -79,6 +83,7 @@ public class TransactionService {
                         .transactionDate(virtualDate)
                         .type(t.getType())
                         .isFixed(true)
+                        .satisfaction(t.getSatisfaction())
                         .user(user)
                         .build();
                 result.add(clone);
@@ -98,6 +103,9 @@ public class TransactionService {
         if (transaction.getIsFixed() == null) {
             transaction.setIsFixed(false);
         }
+        if (transaction.getSatisfaction() == null) {
+            transaction.setSatisfaction(com.coach.spending.model.Satisfaction.NORMAL);
+        }
         return transactionRepository.save(transaction);
     }
 
@@ -116,6 +124,7 @@ public class TransactionService {
         transaction.setTransactionDate(transactionDetails.getTransactionDate());
         transaction.setType(transactionDetails.getType());
         transaction.setIsFixed(transactionDetails.getIsFixed() != null ? transactionDetails.getIsFixed() : false);
+        transaction.setSatisfaction(transactionDetails.getSatisfaction() != null ? transactionDetails.getSatisfaction() : com.coach.spending.model.Satisfaction.NORMAL);
         
         return transactionRepository.save(transaction);
     }
@@ -130,5 +139,56 @@ public class TransactionService {
         }
         
         transactionRepository.delete(transaction);
+    }
+
+    public long getTotalSavedAmount(User user) {
+        List<Transaction> all = getAllTransactions(user);
+        long totalIncome = all.stream()
+                .filter(t -> t.getType() == TransactionType.INCOME)
+                .mapToLong(Transaction::getAmount)
+                .sum();
+        long totalSpending = all.stream()
+                .filter(t -> t.getType() == TransactionType.SPENDING)
+                .mapToLong(Transaction::getAmount)
+                .sum();
+        return totalIncome - totalSpending;
+    }
+
+    public void syncMonthlyIncomeTransaction(User user) {
+        if (user.getIncome() == null || user.getIncome() <= 0) {
+            return;
+        }
+        
+        LocalDate now = LocalDate.now();
+        int year = now.getYear();
+        int month = now.getMonthValue();
+        
+        List<Transaction> all = transactionRepository.findByUserOrderByTransactionDateDesc(user);
+        java.util.Optional<Transaction> autoIncomeOpt = all.stream()
+                .filter(t -> t.getType() == TransactionType.INCOME && 
+                             "[고정] 설정 월 수입".equals(t.getMemo()) && 
+                             t.getTransactionDate().getYear() == year && 
+                             t.getTransactionDate().getMonthValue() == month)
+                .findFirst();
+                
+        if (autoIncomeOpt.isPresent()) {
+            Transaction t = autoIncomeOpt.get();
+            if (!t.getAmount().equals(user.getIncome())) {
+                t.setAmount(user.getIncome());
+                transactionRepository.save(t);
+            }
+        } else {
+            Transaction newIncome = Transaction.builder()
+                    .user(user)
+                    .type(TransactionType.INCOME)
+                    .category(com.coach.spending.model.Category.ETC)
+                    .amount(user.getIncome())
+                    .memo("[고정] 설정 월 수입")
+                    .transactionDate(LocalDate.of(year, month, 10))
+                    .isFixed(true)
+                    .satisfaction(com.coach.spending.model.Satisfaction.NORMAL)
+                    .build();
+            transactionRepository.save(newIncome);
+        }
     }
 }

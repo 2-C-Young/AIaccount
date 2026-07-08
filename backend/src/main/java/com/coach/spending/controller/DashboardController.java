@@ -45,6 +45,8 @@ public class DashboardController {
         }
 
         User user = userOpt.get();
+        userService.syncMonthlyIncomeTransaction(user);
+        
         LocalDate now = LocalDate.now();
         List<Transaction> thisMonthTransactions = transactionService.getTransactionsInMonth(user, now);
         List<Transaction> allTransactions = transactionService.getAllTransactions(user);
@@ -79,6 +81,8 @@ public class DashboardController {
                     spendingByCategory.put(catName, spendingByCategory.getOrDefault(catName, 0L) + t.getAmount());
                 });
 
+        long totalSavedAmount = transactionService.getTotalSavedAmount(user);
+
         return ResponseEntity.ok(DashboardResponse.builder()
                 .userExists(true)
                 .monthlyIncome(user.getIncome())
@@ -88,6 +92,9 @@ public class DashboardController {
                 .remainingBudget(remainingBudget)
                 .recentTransactions(recentTransactions)
                 .spendingByCategory(spendingByCategory)
+                .targetAmount(user.getTargetAmount())
+                .targetPeriodMonths(user.getTargetPeriodMonths())
+                .totalSavedAmount(totalSavedAmount)
                 .aiSummary(null) // Excluded for performance optimization, fetched via /dashboard/summary
                 .build());
     }
@@ -100,6 +107,8 @@ public class DashboardController {
         }
 
         User user = userOpt.get();
+        userService.syncMonthlyIncomeTransaction(user);
+        
         LocalDate now = LocalDate.now();
         List<Transaction> thisMonthTransactions = transactionService.getTransactionsInMonth(user, now);
 

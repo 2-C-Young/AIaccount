@@ -51,6 +51,7 @@ export default function TransactionManager({ transactions, onCreate, onUpdate, o
   const [memo, setMemo] = useState('');
   const [transactionDate, setTransactionDate] = useState(new Date().toISOString().split('T')[0]);
   const [isFixed, setIsFixed] = useState(false);
+  const [satisfaction, setSatisfaction] = useState('NORMAL');
 
   const openAddModal = (defaultDate) => {
     setEditingId(null);
@@ -60,6 +61,7 @@ export default function TransactionManager({ transactions, onCreate, onUpdate, o
     setMemo('');
     setTransactionDate(defaultDate || new Date().toISOString().split('T')[0]);
     setIsFixed(false);
+    setSatisfaction('NORMAL');
     setIsModalOpen(true);
   };
 
@@ -71,6 +73,7 @@ export default function TransactionManager({ transactions, onCreate, onUpdate, o
     setMemo(t.memo?.replace(' (매월 고정)', '') || '');
     setTransactionDate(t.transactionDate);
     setIsFixed(!!t.isFixed);
+    setSatisfaction(t.satisfaction || 'NORMAL');
     setIsModalOpen(true);
   };
 
@@ -88,6 +91,7 @@ export default function TransactionManager({ transactions, onCreate, onUpdate, o
       memo,
       transactionDate,
       isFixed,
+      satisfaction: type === 'INCOME' ? 'NORMAL' : satisfaction,
     };
 
     if (editingId) {
@@ -276,6 +280,7 @@ export default function TransactionManager({ transactions, onCreate, onUpdate, o
                           <th className="pb-3">유형</th>
                           <th className="pb-3">카테고리</th>
                           <th className="pb-3">메모</th>
+                          <th className="pb-3 text-center">만족도</th>
                           <th className="pb-3 text-right">금액</th>
                           <th className="pb-3 text-center">동작</th>
                         </tr>
@@ -312,6 +317,12 @@ export default function TransactionManager({ transactions, onCreate, onUpdate, o
                                 </div>
                               </td>
                               <td className="py-3 text-slate-700 max-w-[200px] truncate">{t.memo || '-'}</td>
+                              <td className="py-3 text-center text-xs font-semibold text-slate-500">
+                                {isIncome ? '-' : (
+                                  t.satisfaction === 'SATISFIED' ? '🥰 만족' :
+                                  t.satisfaction === 'REGRET' ? '💸 후회' : '😐 평범'
+                                )}
+                              </td>
                               <td className={`py-3 text-right font-bold ${
                                 isIncome ? 'text-blue-600' : 'text-slate-800'
                               }`}>
@@ -500,6 +511,13 @@ export default function TransactionManager({ transactions, onCreate, onUpdate, o
                             <span className="text-xs font-bold text-slate-800 truncate">
                               {t.memo || (isIncome ? '기타 수입' : '기타 지출')}
                             </span>
+                            {!isIncome && t.satisfaction && t.satisfaction !== 'NORMAL' && (
+                              <span className={`px-1.5 py-0.5 rounded text-[9px] font-bold ${
+                                t.satisfaction === 'SATISFIED' ? 'bg-emerald-50 text-emerald-700 border border-emerald-100' : 'bg-rose-50 text-rose-700 border border-rose-100'
+                              }`}>
+                                {t.satisfaction === 'SATISFIED' ? '🥰 만족' : '💸 후회'}
+                              </span>
+                            )}
                             {t.isFixed && (
                               <span className="inline-flex items-center gap-0.5 px-1 py-0.5 bg-blue-50 text-blue-600 text-[8px] font-extrabold rounded-md border border-blue-100">
                                 <Pin className="w-2 h-2 fill-blue-600" />
@@ -653,6 +671,35 @@ export default function TransactionManager({ transactions, onCreate, onUpdate, o
                   className="w-full px-4 py-2.5 rounded-lg border border-slate-200 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all text-sm"
                 />
               </div>
+
+              {/* Satisfaction (spending only) */}
+              {type === 'SPENDING' && (
+                <div>
+                  <label className="block text-xs font-semibold uppercase tracking-wider text-slate-500 mb-1">
+                    소비 만족도
+                  </label>
+                  <div className="flex gap-2">
+                    {[
+                      { value: 'SATISFIED', label: '🥰 만족', activeColor: 'bg-emerald-50 text-emerald-700 border-emerald-300 ring-2 ring-emerald-500/10' },
+                      { value: 'NORMAL', label: '😐 평범', activeColor: 'bg-slate-50 text-slate-700 border-slate-300 ring-2 ring-slate-500/10' },
+                      { value: 'REGRET', label: '💸 후회', activeColor: 'bg-rose-50 text-rose-700 border-rose-300 ring-2 ring-rose-500/10' }
+                    ].map((opt) => (
+                      <button
+                        key={opt.value}
+                        type="button"
+                        onClick={() => setSatisfaction(opt.value)}
+                        className={`flex-1 py-2 text-center text-xs font-bold rounded-lg border transition-all ${
+                          satisfaction === opt.value
+                            ? opt.activeColor
+                            : 'bg-white text-slate-500 border-slate-200 hover:bg-slate-50'
+                        }`}
+                      >
+                        {opt.label}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              )}
 
               {/* Fixed Checkbox */}
               <div className="flex items-center gap-2 pt-1.5 pl-0.5">

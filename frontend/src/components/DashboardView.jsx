@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { TrendingUp, TrendingDown, DollarSign, Target, Award, Sparkles } from 'lucide-react';
 
 const CATEGORY_LABELS = {
@@ -34,8 +34,21 @@ const CATEGORY_TEXT_COLORS = {
   ETC: 'text-slate-600'
 };
 
+const CATEGORY_HEX_COLORS = {
+  FOOD: '#f97316',
+  SHOPPING: '#ec4899',
+  HOUSING: '#6366f1',
+  TRANSPORTATION: '#06b6d4',
+  MEDICAL: '#10b981',
+  EDUCATION: '#a855f7',
+  LEISURE: '#eab308',
+  ETC: '#64748b'
+};
+
 export default function DashboardView({ data, onEditProfile, aiSummary, aiSummaryLoading, onFetchSummary }) {
   if (!data) return null;
+
+  const [hoveredCategory, setHoveredCategory] = useState(null);
 
   const formatKrw = (val) => {
     return new Intl.NumberFormat('ko-KR').format(val || 0) + '원';
@@ -54,6 +67,47 @@ export default function DashboardView({ data, onEditProfile, aiSummary, aiSummar
     .sort((a, b) => b.amount - a.amount);
 
   const totalSpending = spendingList.reduce((acc, cur) => acc + cur.amount, 0);
+
+  // 도넛 차트용 conic-gradient 스타일 동적 빌드
+  let accumPercent = 0;
+  const gradientSlices = spendingList.map((item) => {
+    const percent = totalSpending > 0 ? (item.amount / totalSpending) * 100 : 0;
+    const start = accumPercent;
+    accumPercent += percent;
+    const colorHex = CATEGORY_HEX_COLORS[item.cat] || '#cbd5e1';
+    return `${colorHex} ${start.toFixed(2)}% ${accumPercent.toFixed(2)}%`;
+  });
+  const conicGradientStyle = {
+    background: spendingList.length > 0 
+      ? `conic-gradient(${gradientSlices.join(', ')})` 
+      : '#f1f5f9'
+  };
+
+  const handleMouseMove = (e) => {
+    if (spendingList.length === 0 || totalSpending === 0) return;
+    const rect = e.currentTarget.getBoundingClientRect();
+    const x = e.clientX - rect.left - rect.width / 2;
+    const y = e.clientY - rect.top - rect.height / 2;
+    let angle = Math.atan2(y, x) * (180 / Math.PI);
+    
+    angle = angle + 90;
+    if (angle < 0) angle += 360;
+    
+    let currentAngle = 0;
+    for (const item of spendingList) {
+      const percent = (item.amount / totalSpending) * 100;
+      const sliceAngle = (percent / 100) * 360;
+      if (angle >= currentAngle && angle < currentAngle + sliceAngle) {
+        setHoveredCategory(item);
+        return;
+      }
+      currentAngle += sliceAngle;
+    }
+  };
+
+  const handleMouseLeave = () => {
+    setHoveredCategory(null);
+  };
 
   // Predictor calculations (Frontend-only, 100% safe)
   const today = new Date();
@@ -149,6 +203,72 @@ export default function DashboardView({ data, onEditProfile, aiSummary, aiSummar
         </div>
       </div>
 
+      {/* Long-term Savings Goal Card */}
+      {data.targetAmount && data.targetPeriodMonths && (
+        <div className="bg-white p-6 rounded-2xl shadow-sm border border-slate-100 space-y-4">
+          <div className="flex items-center justify-between flex-wrap gap-2">
+            <div className="flex items-center gap-3">
+              <div className="p-3 bg-indigo-50 text-indigo-600 rounded-xl">
+                <Sparkles className="w-5 h-5" />
+              </div>
+              <div>
+                <h3 className="text-sm font-bold text-slate-800 flex items-center gap-1.5">
+                  장기 저축 목표 달성 현황
+                </h3>
+                <p className="text-xs text-slate-400 mt-0.5">
+                  {Math.floor(data.targetPeriodMonths / 12)}년 {data.targetPeriodMonths % 12}개월 동안 {formatKrw(data.targetAmount)} 모으기
+                </p>
+              </div>
+            </div>
+            
+            <div className="flex items-center gap-2">
+              {data.goalSaving >= (data.targetPeriodMonths > 0 ? Math.max(0, Math.round((data.targetAmount - data.totalSavedAmount) / data.targetPeriodMonths)) : 0) ? (
+                <span className="text-[10px] bg-emerald-50 text-emerald-600 border border-emerald-100 px-2 py-1 rounded-md font-bold">
+                  🟢 순항 중
+                </span>
+              ) : (
+                <span className="text-[10px] bg-amber-50 text-amber-600 border border-amber-100 px-2 py-1 rounded-md font-bold">
+                  ⚠️ 조정 필요
+                </span>
+              )}
+              <span className="text-lg font-black text-indigo-600">
+                {Math.max(0, Math.min(Math.round((data.totalSavedAmount / data.targetAmount) * 100), 100))}%
+              </span>
+            </div>
+          </div>
+
+          <div className="space-y-2">
+            <div className="relative w-full h-4 bg-slate-100 rounded-full overflow-hidden">
+              <div 
+                className="h-full bg-gradient-to-r from-indigo-500 via-purple-500 to-pink-500 rounded-full transition-all duration-1000"
+                style={{ width: `${Math.max(0, Math.min(Math.round((data.totalSavedAmount / data.targetAmount) * 100), 100))}%` }}
+              />
+            </div>
+            
+            <div className="flex justify-between text-[10px] text-slate-400 font-bold">
+              <span>현재 누적: {formatKrw(data.totalSavedAmount)}</span>
+              <span>목표액: {formatKrw(data.targetAmount)}</span>
+            </div>
+          </div>
+
+          <div className="bg-slate-50 rounded-xl p-4 border border-slate-100 text-xs text-slate-600 space-y-1.5">
+            <div className="flex items-center justify-between">
+              <span>목표 달성을 위한 월 필수 저축액:</span>
+              <span className="font-bold text-slate-800">
+                {formatKrw(data.targetPeriodMonths > 0 ? Math.max(0, Math.round((data.targetAmount - data.totalSavedAmount) / data.targetPeriodMonths)) : 0)} / 월
+              </span>
+            </div>
+            <div className="text-[11px] text-slate-400 leading-relaxed pt-1.5 border-t border-slate-100">
+              {data.goalSaving >= (data.targetPeriodMonths > 0 ? Math.max(0, Math.round((data.targetAmount - data.totalSavedAmount) / data.targetPeriodMonths)) : 0) ? (
+                <span>현재 설정된 월 목표 저축액({formatKrw(data.goalSaving)})이 필수 페이스({formatKrw(data.targetPeriodMonths > 0 ? Math.max(0, Math.round((data.targetAmount - data.totalSavedAmount) / data.targetPeriodMonths)) : 0)})보다 많아 안정적으로 도달할 수 있습니다. 남는 예산은 보너스 저축으로 합산됩니다!</span>
+              ) : (
+                <span>현재 설정된 월 목표 저축액({formatKrw(data.goalSaving)})이 필수 페이스({formatKrw(data.targetPeriodMonths > 0 ? Math.max(0, Math.round((data.targetAmount - data.totalSavedAmount) / data.targetPeriodMonths)) : 0)})에 미치지 못합니다. 월 저축 목표를 올리거나 낭비를 줄여 저축률을 극대화해야 합니다!</span>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Budget Progress & Savings Goal Predictor */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
         {/* Budget Progress Bar */}
@@ -239,33 +359,59 @@ export default function DashboardView({ data, onEditProfile, aiSummary, aiSummar
             </div>
           ) : (
             <div className="space-y-4">
-              {/* Custom horizontal progress bar chart */}
-              <div className="flex h-3 rounded-full overflow-hidden bg-slate-100">
-                {spendingList.map((item) => {
-                  const percent = totalSpending > 0 ? (item.amount / totalSpending) * 100 : 0;
-                  return (
-                    <div
-                      key={item.cat}
-                      className={CATEGORY_COLORS[item.cat]}
-                      style={{ width: `${percent}%` }}
-                      title={`${CATEGORY_LABELS[item.cat]}: ${percent.toFixed(1)}%`}
-                    />
-                  );
-                })}
+              {/* Custom Donut Chart */}
+              <div className="flex justify-center py-4">
+                <div 
+                  className="relative w-40 h-40 rounded-full flex items-center justify-center shadow-sm cursor-pointer transition-transform duration-300 hover:scale-[1.03]"
+                  style={conicGradientStyle}
+                  onMouseMove={handleMouseMove}
+                  onMouseLeave={handleMouseLeave}
+                >
+                  {/* Center circle to make it a Donut Chart */}
+                  <div className="absolute w-28 h-28 bg-white rounded-full flex flex-col items-center justify-center shadow-inner select-none pointer-events-none transition-all duration-300">
+                    {hoveredCategory ? (
+                      <>
+                        <span className="text-[10px] text-slate-400 font-bold uppercase tracking-wider flex items-center gap-1">
+                          <span className={`w-1.5 h-1.5 rounded-full ${CATEGORY_COLORS[hoveredCategory.cat]}`} />
+                          {CATEGORY_LABELS[hoveredCategory.cat]}
+                        </span>
+                        <span className="text-sm font-extrabold text-slate-800 mt-0.5">
+                          {formatKrw(hoveredCategory.amount)}
+                        </span>
+                        <span className="text-[10px] text-slate-400 font-semibold mt-0.5">
+                          {totalSpending > 0 ? Math.round((hoveredCategory.amount / totalSpending) * 100) : 0}%
+                        </span>
+                      </>
+                    ) : (
+                      <>
+                        <span className="text-[10px] text-slate-400 font-bold uppercase tracking-wider">총 소비</span>
+                        <span className="text-sm font-extrabold text-slate-800 mt-0.5">{formatKrw(totalSpending)}</span>
+                      </>
+                    )}
+                  </div>
+                </div>
               </div>
 
               {/* Category Legend list */}
-              <div className="space-y-3 pt-2">
+              <div className="space-y-1.5 pt-2">
                 {spendingList.map((item) => {
                   const percent = totalSpending > 0 ? Math.round((item.amount / totalSpending) * 100) : 0;
+                  const isHovered = hoveredCategory?.cat === item.cat;
                   return (
-                    <div key={item.cat} className="flex items-center justify-between text-sm">
+                    <div 
+                      key={item.cat} 
+                      className={`flex items-center justify-between text-sm p-2 rounded-xl transition-all duration-200 cursor-pointer ${
+                        isHovered ? 'bg-slate-50 translate-x-1 shadow-sm' : 'hover:bg-slate-50/50'
+                      }`}
+                      onMouseEnter={() => setHoveredCategory(item)}
+                      onMouseLeave={() => setHoveredCategory(null)}
+                    >
                       <div className="flex items-center gap-2">
-                        <span className={`w-2.5 h-2.5 rounded-full ${CATEGORY_COLORS[item.cat]}`} />
-                        <span className="text-slate-600 font-medium">{CATEGORY_LABELS[item.cat]}</span>
+                        <span className={`w-2.5 h-2.5 rounded-full ${CATEGORY_COLORS[item.cat]} ${isHovered ? 'scale-125' : ''} transition-transform`} />
+                        <span className={`text-slate-600 ${isHovered ? 'font-bold text-slate-800' : 'font-medium'}`}>{CATEGORY_LABELS[item.cat]}</span>
                       </div>
                       <div className="text-right">
-                        <span className="font-bold text-slate-800">{formatKrw(item.amount)}</span>
+                        <span className={`font-bold ${isHovered ? 'text-blue-600' : 'text-slate-800'}`}>{formatKrw(item.amount)}</span>
                         <span className="text-xs text-slate-400 ml-1.5">{percent}%</span>
                       </div>
                     </div>

@@ -28,6 +28,23 @@ public class User {
     @Column(nullable = false)
     private String password;
 
-    private Long income;      // 월 수입
-    private Long goalSaving;  // 목표 저축액
+    @Builder.Default
+    private Long income = 3000000L;      // 월 수입
+
+    @Builder.Default
+    private Long goalSaving = 500000L;  // 목표 저축액
+
+    @Builder.Default
+    private String coachPersona = "SPICY";
+
+    @Builder.Default
+    private Long targetAmount = 30000000L;
+
+    @Builder.Default
+    private Integer targetPeriodMonths = 60;
+
+    @Column(columnDefinition = "TEXT")
+    private String lastAiReport;
+
+    private String lastAiReportPersona;
 }

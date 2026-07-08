@@ -40,6 +40,10 @@ public class Transaction {
 
     private Boolean isFixed; // 고정 지출 여부
 
+    @Enumerated(EnumType.STRING)
+    @Builder.Default
+    private Satisfaction satisfaction = Satisfaction.NORMAL;
+
     @ManyToOne
     @JoinColumn(name = "user_id", nullable = false)
     private User user;

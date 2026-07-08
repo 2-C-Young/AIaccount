@@ -18,4 +18,9 @@ public class DashboardResponse {
     private Map<String, Long> spendingByCategory; // 카테고리별 지출 금액 합계
     private String aiSummary;         // AI 한 줄 요약
     private boolean userExists;       // 사용자 등록 여부
+
+    // 장기 목표 연동 필드
+    private Long targetAmount;         // 장기 목표 금액 (설정된 값)
+    private Integer targetPeriodMonths; // 장기 목표 기간 (설정된 값, 개월 수)
+    private Long totalSavedAmount;     // 가계부 누적 실제 순저축액
 }
